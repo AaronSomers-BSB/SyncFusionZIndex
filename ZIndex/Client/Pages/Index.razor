@@ -1,0 +1,88 @@
+﻿@page "/"
+
+@using Syncfusion.Blazor.Popups
+@using System.Threading
+
+@implements IDisposable
+
+@inject IJSRuntime js 
+
+<div id="target">
+    <div>
+        @if (this.ShowButton)
+        {
+            <button class="e-btn" @onclick="@OnBtnClick">Open</button>
+        }
+    </div>
+    <SfDialog @ref="@SfDialog" Width="335px" Target="#target" ZIndex="1000" IsModal="true" @bind-Visible="Visibility">
+        <DialogTemplates>
+            <Header> Software Update </Header>
+            <Content>
+                <p>z-index: @data</p>
+            </Content>
+        </DialogTemplates>
+        <DialogButtons>
+            <DialogButton Content="OK" IsPrimary="true" OnClick="@DlgButtonClick" />
+        </DialogButtons>
+        <DialogEvents OnOpen="@DialogOpen" Closed="@DialogClose"></DialogEvents>
+        <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+    </SfDialog>
+</div>
+<style>
+    #target {
+        max-height: 800px;
+        height: 100%;
+    }
+</style>
+@code {
+    private SfDialog SfDialog { get; set; }
+    private bool Visibility { get; set; } = true;
+    private bool ShowButton { get; set; } = false;
+    private CancellationTokenSource cts;
+    private string data { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        cts = new();
+        RT(() =>
+        {
+            InvokeAsync(async () => {
+                data = await js.InvokeAsync<string>("getZIndex", SfDialog.ID);
+                StateHasChanged();
+            });
+        }, 1, cts.Token);
+    }
+    private void DialogOpen(Object args)
+    {
+        this.ShowButton = false;
+    }
+    private void DialogClose(Object args)
+    {
+        this.ShowButton = true;
+    }
+    private void OnBtnClick()
+    {
+        this.Visibility = true;
+    }
+    private void DlgButtonClick()
+    {
+        this.Visibility = false;
+    }
+    static void RT(Action action, int seconds, CancellationToken token)
+    {
+        if (action == null)
+            return; Task.Run(async () =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    action();
+                    await Task.Delay(TimeSpan.FromSeconds(seconds), token);
+                }
+            }, token);
+    }
+
+    void IDisposable.Dispose()
+    {
+        cts.Cancel();
+    }
+}
